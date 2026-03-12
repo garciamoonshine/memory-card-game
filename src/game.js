@@ -21,16 +21,27 @@ class MemoryGame {
     this.deck = buildDeck(cfg.pairs);
     buildGrid(this.board, this.deck, cfg.cols);
     this.flipped = [];
-    this.locked = false;
+    this.locked = true; // locked during peek
     this.moves = 0;
     this.matched = 0;
     this.movesEl.textContent = '0';
     this.timerEl.textContent = '0:00';
     this.timer.reset();
-    this.timer.start();
-    this.board.querySelectorAll('.card').forEach(el => {
-      el.addEventListener('click', () => this.onCardClick(el));
-    });
+    this.updateBest();
+
+    // peek: show all cards for 800ms then hide
+    const cards = this.board.querySelectorAll('.card');
+    cards.forEach(el => el.classList.add('flipped'));
+    setTimeout(() => {
+      cards.forEach(el => el.classList.remove('flipped'));
+      setTimeout(() => {
+        this.locked = false;
+        this.timer.start();
+        cards.forEach(el => {
+          el.addEventListener('click', () => this.onCardClick(el));
+        });
+      }, 450);
+    }, 900);
   }
 
   onCardClick(el) {

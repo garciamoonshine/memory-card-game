@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Memory Card Game</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div id="app">
+    <header>
+      <h1>🃏 Memory</h1>
+      <div id="stats">
+        <div class="stat"><span class="label">MOVES</span><span id="moves">0</span></div>
+        <div class="stat"><span class="label">TIME</span><span id="timer">0:00</span></div>
+        <div class="stat"><span class="label">BEST</span><span id="best">--</span></div>
+      </div>
+    </header>
+    <div id="controls">
+      <button class="diff-btn active" data-size="4">4x4</button>
+      <button class="diff-btn" data-size="6">6x4</button>
+      <button class="diff-btn" data-size="6">6x6</button>
+      <button id="restart-btn">🔄 Restart</button>
+    </div>
+    <div id="board"></div>
+    <div id="win-overlay" class="hidden">
+      <div id="win-box">
+        <h2>🎉 You Win!</h2>
+        <p id="win-stats"></p>
+        <button id="play-again">Play Again</button>
+      </div>
+    </div>
+  </div>
+  <script src="src/constants.js"></script>
+  <script src="src/cards.js"></script>
+  <script src="src/timer.js"></script>
+  <script src="src/game.js"></script>
+  <script src="src/main.js"></script>
+</body>
+</html>

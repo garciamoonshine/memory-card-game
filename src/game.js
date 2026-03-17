@@ -1,104 +1,92 @@
-class MemoryGame {
-  constructor() {
-    this.board = document.getElementById('board');
-    this.movesEl = document.getElementById('moves');
-    this.timerEl = document.getElementById('timer');
-    this.bestEl = document.getElementById('best');
-    this.gridKey = '4x4';
-    this.deck = [];
-    this.flipped = [];
-    this.locked = false;
-    this.moves = 0;
-    this.matched = 0;
-    this.timer = new GameTimer(t => { this.timerEl.textContent = t; });
-    this.best = JSON.parse(localStorage.getItem('memory-best') || '{}');
-    this.updateBest();
-  }
+// Memory Card Game - Enhanced Phase 2
+let cards = [], flipped = [], matched = 0, moves = 0;
+let timerInterval, elapsedSeconds = 0;
+let isLocked = false;
 
-  init(gridKey = this.gridKey) {
-    this.gridKey = gridKey;
-    const cfg = GRID_CONFIGS[gridKey];
-    this.deck = buildDeck(cfg.pairs);
-    buildGrid(this.board, this.deck, cfg.cols);
-    this.flipped = [];
-    this.locked = true; // locked during peek
-    this.moves = 0;
-    this.matched = 0;
-    this.movesEl.textContent = '0';
-    this.timerEl.textContent = '0:00';
-    this.timer.reset();
-    this.updateBest();
+function startGame() {
+  clearInterval(timerInterval);
+  elapsedSeconds = 0; moves = 0; matched = 0; flipped = []; isLocked = false;
+  document.getElementById('moves').textContent = 0;
+  document.getElementById('timer').textContent = '0:00';
+  document.getElementById('result-msg').textContent = '';
+  if (multiplayerMode) initMultiplayer();
 
-    // peek: show all cards for 800ms then hide
-    const cards = this.board.querySelectorAll('.card');
-    cards.forEach(el => el.classList.add('flipped'));
+  const cols = parseInt(document.getElementById('difficulty').value);
+  const pairs = cols * 4 / 2; // e.g. 6*4/2 = 12 pairs
+  const pool = getThemeEmojis(activeTheme, pairs);
+
+  // Fill with defaults if not enough
+  const defaultPool = ['🐶','🐱','🐭','🐹','🐰','🦊','🐻','🐼','🐨','🐯','🦁','🐮'];
+  while (pool.length < pairs) pool.push(defaultPool[pool.length % defaultPool.length]);
+
+  const doubled = [...pool, ...pool].sort(() => Math.random() - 0.5);
+  cards = doubled.map((emoji, i) => ({ id: i, emoji, isFlipped: false, isMatched: false }));
+
+  const grid = document.getElementById('card-grid');
+  grid.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
+  grid.innerHTML = '';
+  cards.forEach((card, i) => {
+    const el = document.createElement('div');
+    el.className = 'card';
+    el.dataset.index = i;
+    el.innerHTML = '<span class="card-back">🌟</span>';
+    el.addEventListener('click', () => flipCard(i, el));
+    grid.appendChild(el);
+  });
+
+  timerInterval = setInterval(() => {
+    elapsedSeconds++;
+    const m = Math.floor(elapsedSeconds/60), s = elapsedSeconds % 60;
+    document.getElementById('timer').textContent = `${m}:${s.toString().padStart(2,'0')}`;
+  }, 1000);
+}
+
+function flipCard(index, el) {
+  if (isLocked || cards[index].isFlipped || cards[index].isMatched) return;
+  cards[index].isFlipped = true;
+  el.classList.add('flipped');
+  const isCustomImg = typeof cards[index].emoji === 'string' && cards[index].emoji.startsWith('data:');
+  el.innerHTML = isCustomImg
+    ? `<img src="${cards[index].emoji}" style="width:80%;height:80%;object-fit:cover;border-radius:8px">`
+    : `<span style="font-size:28px">${cards[index].emoji}</span>`;
+  flipped.push(index);
+  if (flipped.length === 2) { moves++; document.getElementById('moves').textContent = moves; checkMatch(); }
+}
+
+function checkMatch() {
+  isLocked = true;
+  const [a, b] = flipped;
+  const isMatch = cards[a].emoji === cards[b].emoji;
+  if (isMatch) {
+    cards[a].isMatched = cards[b].isMatched = true;
+    document.querySelectorAll('.card')[a].classList.add('matched');
+    document.querySelectorAll('.card')[b].classList.add('matched');
+    matched += 2;
+    if (multiplayerMode) onPairFound(true);
+    flipped = []; isLocked = false;
+    if (matched === cards.length) endGame();
+  } else {
+    if (multiplayerMode) onPairFound(false);
     setTimeout(() => {
-      cards.forEach(el => el.classList.remove('flipped'));
-      setTimeout(() => {
-        this.locked = false;
-        this.timer.start();
-        cards.forEach(el => {
-          el.addEventListener('click', () => this.onCardClick(el));
-        });
-      }, 450);
+      [a, b].forEach(i => {
+        cards[i].isFlipped = false;
+        const el = document.querySelectorAll('.card')[i];
+        el.classList.remove('flipped');
+        el.innerHTML = '<span class="card-back">🌟</span>';
+      });
+      flipped = []; isLocked = false;
     }, 900);
   }
-
-  onCardClick(el) {
-    const idx = parseInt(el.dataset.index);
-    const card = this.deck[idx];
-    if (this.locked || card.flipped || card.matched) return;
-    card.flipped = true;
-    el.classList.add('flipped');
-    this.flipped.push({ el, card });
-    if (this.flipped.length === 2) {
-      this.moves++;
-      this.movesEl.textContent = this.moves;
-      this.locked = true;
-      this.checkMatch();
-    }
-  }
-
-  checkMatch() {
-    const [a, b] = this.flipped;
-    if (a.card.emoji === b.card.emoji) {
-      a.card.matched = b.card.matched = true;
-      a.el.classList.add('matched');
-      b.el.classList.add('matched');
-      this.flipped = [];
-      this.locked = false;
-      this.matched++;
-      if (this.matched === GRID_CONFIGS[this.gridKey].pairs) this.win();
-    } else {
-      setTimeout(() => {
-        a.card.flipped = b.card.flipped = false;
-        a.el.classList.remove('flipped');
-        b.el.classList.remove('flipped');
-        this.flipped = [];
-        this.locked = false;
-      }, 900);
-    }
-  }
-
-  win() {
-    this.timer.stop();
-    const key = this.gridKey;
-    const current = { moves: this.moves, time: this.timer.elapsed };
-    const prev = this.best[key];
-    if (!prev || current.moves < prev.moves || (current.moves === prev.moves && current.time < prev.time)) {
-      this.best[key] = current;
-      localStorage.setItem('memory-best', JSON.stringify(this.best));
-      this.updateBest();
-    }
-    setTimeout(() => {
-      document.getElementById('win-stats').textContent =
-        `${this.moves} moves in ${this.timer.formatted}`;
-      document.getElementById('win-overlay').classList.remove('hidden');
-    }, 400);
-  }
-
-  updateBest() {
-    const b = this.best[this.gridKey];
-    this.bestEl.textContent = b ? `${b.moves}m` : '--';
-  }
 }
+
+function endGame() {
+  clearInterval(timerInterval);
+  const bestKey = `memoryBest_${activeTheme}_${document.getElementById('difficulty').value}`;
+  const prev = parseInt(localStorage.getItem(bestKey)) || Infinity;
+  if (moves < prev) localStorage.setItem(bestKey, moves);
+  document.getElementById('best-moves').textContent = Math.min(moves, prev);
+  const msg = multiplayerMode ? getWinner() : `🎉 Done in ${moves} moves & ${Math.floor(elapsedSeconds/60)}:${(elapsedSeconds%60).toString().padStart(2,'0')}!`;
+  document.getElementById('result-msg').textContent = msg;
+}
+
+startGame();

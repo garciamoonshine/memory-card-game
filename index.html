@@ -3,38 +3,101 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Memory Card Game</title>
+  <title>🃏 Memory Card Game</title>
   <link rel="stylesheet" href="style.css">
+  <style>
+    body { background:#1a1a2e; color:#fff; font-family:'Segoe UI',sans-serif; margin:0; padding:16px; }
+    h1 { text-align:center; margin-bottom:10px; }
+    #top-bar { display:flex; flex-wrap:wrap; gap:10px; justify-content:center; align-items:center; margin-bottom:12px; }
+    .theme-btn { padding:5px 12px; border:2px solid #555; border-radius:20px; background:#1a1a2e; color:#ccc; cursor:pointer; font-size:13px; }
+    .theme-btn.active { border-color:#4ecca3; color:#4ecca3; }
+    #mode-toggle { background:#533483; color:#fff; border:none; padding:6px 14px; border-radius:20px; cursor:pointer; font-size:13px; }
+    #stats-bar { display:flex; gap:16px; justify-content:center; font-size:14px; margin-bottom:10px; flex-wrap:wrap; }
+    .stat { background:rgba(255,255,255,0.08); padding:4px 12px; border-radius:12px; }
+    #player-display { display:flex; gap:16px; justify-content:center; margin-bottom:10px; }
+    .player-card { padding:6px 16px; border-radius:16px; background:rgba(255,255,255,0.07); border:2px solid transparent; transition:all 0.3s; text-align:center; font-size:13px; }
+    .player-card.active { border-color:#ffd700; background:rgba(255,215,0,0.15); }
+    #player-turn { text-align:center; font-size:15px; font-weight:bold; color:#4ecca3; min-height:22px; margin-bottom:6px; }
+    #bonus-notice { text-align:center; color:#ffd700; font-weight:bold; font-size:14px; min-height:20px; margin-bottom:6px; transition:opacity 0.5s; opacity:0; }
+    #card-grid { display:grid; gap:8px; max-width:520px; margin:0 auto; }
+    .card { aspect-ratio:1; border-radius:10px; cursor:pointer; background:#16213e; border:2px solid #333; display:flex; align-items:center; justify-content:center; font-size:28px; transition:transform 0.3s; position:relative; }
+    .card:hover { transform:scale(1.05); }
+    .card.flipped, .card.matched { background:#0f3460; border-color:#4ecca3; }
+    .card.matched { border-color:#ffd700; opacity:0.7; }
+    #upload-area { text-align:center; margin-top:12px; }
+    #upload-area label { background:#533483; color:#fff; padding:6px 16px; border-radius:20px; cursor:pointer; font-size:13px; }
+    #upload-area input { display:none; }
+    #result-msg { text-align:center; font-size:20px; font-weight:bold; margin-top:10px; min-height:28px; color:#4ecca3; }
+    #restart-btn { display:block; margin:10px auto; background:#4ecca3; color:#000; border:none; padding:8px 24px; border-radius:20px; font-size:14px; font-weight:bold; cursor:pointer; }
+  </style>
 </head>
 <body>
-  <div id="app">
-    <header>
-      <h1>🃏 Memory</h1>
-      <div id="stats">
-        <div class="stat"><span class="label">MOVES</span><span id="moves">0</span></div>
-        <div class="stat"><span class="label">TIME</span><span id="timer">0:00</span></div>
-        <div class="stat"><span class="label">BEST</span><span id="best">--</span></div>
-      </div>
-    </header>
-    <div id="controls">
-      <button class="diff-btn active" data-size="4">4x4</button>
-      <button class="diff-btn" data-size="6">6x4</button>
-      <button class="diff-btn" data-size="6">6x6</button>
-      <button id="restart-btn">🔄 Restart</button>
-    </div>
-    <div id="board"></div>
-    <div id="win-overlay" class="hidden">
-      <div id="win-box">
-        <h2>🎉 You Win!</h2>
-        <p id="win-stats"></p>
-        <button id="play-again">Play Again</button>
-      </div>
-    </div>
+  <h1>🃏 Memory Card Game</h1>
+  <div id="top-bar">
+    <button class="theme-btn active" data-theme="animals">🐾 Animals</button>
+    <button class="theme-btn" data-theme="food">🍕 Food</button>
+    <button class="theme-btn" data-theme="space">🚀 Space</button>
+    <button class="theme-btn" data-theme="sports">⚽ Sports</button>
+    <button class="theme-btn" data-theme="tech">💻 Tech</button>
+    <button class="theme-btn" data-theme="custom">🎨 Custom</button>
+    <button id="mode-toggle">👥 2-Player Mode</button>
   </div>
-  <script src="src/constants.js"></script>
-  <script src="src/cards.js"></script>
-  <script src="src/timer.js"></script>
+  <div id="stats-bar">
+    <div class="stat">⏱️ <span id="timer">0:00</span></div>
+    <div class="stat">🎯 Moves: <span id="moves">0</span></div>
+    <div class="stat">⭐ Best: <span id="best-moves">-</span></div>
+    <select id="difficulty" style="background:#16213e;color:#fff;border:1px solid #555;border-radius:12px;padding:4px 8px;">
+      <option value="4">Easy (4×4)</option>
+      <option value="5">Medium (5×4)</option>
+      <option value="6" selected>Hard (6×4)</option>
+    </select>
+  </div>
+  <div id="player-display" style="display:none">
+    <div class="player-card" id="p1-indicator">👤 P1: <b id="p1-score">0</b></div>
+    <div class="player-card" id="p2-indicator">👤 P2: <b id="p2-score">0</b></div>
+  </div>
+  <div id="player-turn"></div>
+  <div id="bonus-notice"></div>
+  <div id="card-grid"></div>
+  <div id="upload-area">
+    <label>📤 Upload Custom Images <input type="file" id="img-upload" accept="image/*" multiple></label>
+    <button onclick="clearCustomImages();alert('Custom images cleared!')" style="background:#c0392b;color:#fff;border:none;padding:5px 12px;border-radius:16px;cursor:pointer;font-size:12px;margin-left:8px">🗑 Clear Custom</button>
+  </div>
+  <div id="result-msg"></div>
+  <button id="restart-btn">🔄 New Game</button>
+  <script src="src/themes.js"></script>
+  <script src="src/multiplayer.js"></script>
   <script src="src/game.js"></script>
-  <script src="src/main.js"></script>
+  <script>
+    // Theme selector
+    document.querySelectorAll('.theme-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        activeTheme = btn.dataset.theme;
+        document.querySelectorAll('.theme-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        if (typeof startGame === 'function') startGame();
+      });
+    });
+    // 2-player toggle
+    document.getElementById('mode-toggle').addEventListener('click', function() {
+      multiplayerMode = !multiplayerMode;
+      this.textContent = multiplayerMode ? '👤 Single Player' : '👥 2-Player Mode';
+      document.getElementById('player-display').style.display = multiplayerMode ? 'flex' : 'none';
+      if (multiplayerMode) initMultiplayer();
+      if (typeof startGame === 'function') startGame();
+    });
+    // Image upload
+    document.getElementById('img-upload').addEventListener('change', function() {
+      const files = Array.from(this.files);
+      files.forEach(f => {
+        const reader = new FileReader();
+        reader.onload = e => { addCustomImage(e.target.result); };
+        reader.readAsDataURL(f);
+      });
+      setTimeout(() => { activeTheme = 'custom'; if(typeof startGame==='function') startGame(); }, 300);
+    });
+    document.getElementById('restart-btn').addEventListener('click', () => { if(typeof startGame==='function') startGame(); });
+    document.getElementById('difficulty').addEventListener('change', () => { if(typeof startGame==='function') startGame(); });
+  </script>
 </body>
 </html>
